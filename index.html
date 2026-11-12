@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TOKBOOK</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{background:#000;color:#fff;overflow:hidden;height:100vh}
+#top{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;background:linear-gradient(#000,transparent)}
+#top b{font-size:22px;letter-spacing:1px}
+#top b span{color:#ff2d55}
+#status{font-size:12px;background:#222;padding:5px 10px;border-radius:20px}
+#status.offline{background:#ff2d55}
+#feed{height:100vh;overflow-y:scroll;scroll-snap-type:y mandatory}
+.post{height:100vh;scroll-snap-align:start;position:relative;display:flex;align-items:center;justify-content:center;background:#111}
+.post video{width:100%;height:100%;object-fit:cover}
+.info{position:absolute;left:12px;bottom:90px;z-index:5}
+.info b{font-size:16px}
+.info p{font-size:13px;color:#ddd;margin-top:4px;max-width:240px}
+.actions{position:absolute;right:10px;bottom:90px;display:flex;flex-direction:column;gap:18px;z-index:5;text-align:center}
+.actions button{background:#222;border:2px solid #fff;width:52px;height:52px;border-radius:50%;font-size:22px;cursor:pointer;color:#fff}
+.actions button.active{background:#ff2d55}
+.actions span{font-size:12px}
+#bottom{position:fixed;bottom:0;left:0;right:0;z-index:10;display:flex;justify-content:space-around;padding:12px;background:#000;border-top:1px solid #222}
+#bottom button{background:none;border:none;color:#fff;font-size:22px}
+#bottom button.active{color:#ff2d55}
+#offlineBar{display:none;position:fixed;top:50px;left:10px;right:10px;z-index:20;background:#ff2d55;padding:10px;border-radius:10px;text-align:center;font-size:13px}
+#addBtn{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:20;background:#ff2d55;border:none;color:#fff;padding:12px 20px;border-radius:30px;font-weight:bold}
+</style>
+</head>
+<body>
+
+<div id="top"><b>TOK<span>BOOK</span></b><div id="status">● En ligne</div></div>
+<div id="offlineBar">📴 Tu es hors ligne - Voici ce que tu as DÉJÀ regardé. Pour voir les nouveautés, il faut la connexion.</div>
+<div id="feed"></div>
+
+<div class="actions" style="display:none"></div>
+
+<div id="bottom">
+<button class="active" onclick="showFeed('pourtoi')">🏠<br><span style="font-size:10px">Pour Toi</span></button>
+<button onclick="showFeed('dejavu')">📴<br><span style="font-size:10px">Déjà Vu</span></button>
+<button onclick="document.getElementById('fileInput').click()">➕<br><span style="font-size:10px">Ajouter</span></button>
+<button>👤<br><span style="font-size:10px">Moi</span></button>
+</div>
+
+<input type="file" id="fileInput" accept="video/*" style="display:none">
+
+<script>
+// VIDEOS DE TEST - Apres tu mettras tes videos
+let videos = [
+  {id:1, user:"@lad_vvs", desc:"VVS BEAT 🔥🔥 #Ouaga #Tokbook", url:"https://cdn.coverr.co/videos/coverr-dancing-in-the-street-1564/1080p.mp4", likes:1250},
+  {id:2, user:"@sam_ouaga", desc:"Ouaga c'est nous 🇧🇫", url:"https://cdn.coverr.co/videos/coverr-a-man-walking-in-the-city-1585/1080p.mp4", likes:890},
+  {id:3, user:"@didier", desc:"Nouveau son bientot...", url:"https://cdn.coverr.co/videos/coverr-people-dancing-at-a-concert-1572/1080p.mp4", likes:2100},
+];
+
+// CE QUE TU AS DEJA REGARDE - Sauvegarde dans le telephone
+let dejaVu = JSON.parse(localStorage.getItem('tokbook_dejavu') || '[]');
+let currentMode = 'pourtoi';
+
+function render(){
+  let feed = document.getElementById('feed');
+  feed.innerHTML = '';
+  let list = currentMode === 'dejavu' ? videos.filter(v=>dejaVu.includes(v.id)) : videos;
+  if(list.length===0){
+    feed.innerHTML = '<div style="height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px">Aucune vidéo Déjà Vu.<br><br>Regarde des vidéos quand tu as la connexion, elles seront ici quand tu seras hors ligne.</div>';
+    return;
+  }
+  list.forEach(v=>{
+    let div = document.createElement('div');
+    div.className='post';
+    div.innerHTML = `
+      <video src="${v.url}" loop playsinline muted onclick="this.paused?this.play():this.pause()"></video>
+      <div class="info"><b>${v.user}</b><p>${v.desc}</p></div>
+      <div class="actions">
+        <div><button onclick="like(this)">❤️</button><br><span>${v.likes}</span></div>
+        <div><button>💬</button><br><span>45</span></div>
+        <div><button>↗️</button><br><span>Partager</span></div>
+      </div>`;
+    feed.appendChild(div);
+    // Quand la video apparait, on la met en Déjà Vu
+    let obs = new IntersectionObserver(e=>{
+      if(e[0].isIntersecting){
+        if(!dejaVu.includes(v.id)){ dejaVu.push(v.id); localStorage.setItem('tokbook_dejavu', JSON.stringify(dejaVu)); }
+        div.querySelector('video').play().catch(()=>{});
+      } else { div.querySelector('video').pause(); }
+    },{threshold:0.6});
+    obs.observe(div);
+  });
+}
+
+function like(btn){ btn.classList.toggle('active'); }
+function showFeed(mode){
+  currentMode=mode;
+  document.querySelectorAll('#bottom button').forEach(b=>b.classList.remove('active'));
+  render();
+}
+function updateStatus(){
+  let online = navigator.onLine;
+  document.getElementById('status').textContent = online ? '● En ligne' : '● Hors ligne';
+  document.getElementById('status').className = online ? '' : 'offline';
+  document.getElementById('offlineBar').style.display = online ? 'none' : 'block';
+  if(!online && currentMode!=='dejavu'){ showFeed('dejavu'); }
+}
+window.addEventListener('online', updateStatus);
+window.addEventListener('offline', updateStatus);
+
+// Ajouter ta propre video depuis ton telephone
+document.getElementById('fileInput').addEventListener('change', e=>{
+  let file = e.target.files[0];
+  if(!file) return;
+  let url = URL.createObjectURL(file);
+  videos.unshift({id:Date.now(), user:"@moi", desc:"Ma nouvelle video Tokbook", url:url, likes:0});
+  showFeed('pourtoi');
+  alert('Video ajoutée ! Elle est dans ton Tokbook.');
+});
+
+updateStatus();
+render();
+</script>
+</body>
+</html>
